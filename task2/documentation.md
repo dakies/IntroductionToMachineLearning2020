@@ -7,6 +7,11 @@ Data: 12 hours per patient, vital signs and test results
 Subtask 1: Predict whether medical tests will be ordered (classification with softmax)
 Subtask 2: Predict whether sepsis will occur (classification with softmax)
 Subtask 3: predict future means of vital signs (regression?)
+        # Train linear regression model for every label - gives very bad results except for heart rate
+        Linear Regression - R2 score for  LABEL_RRate   -0.36635056919554
+        Linear Regression - R2 score for  LABEL_ABPm   0.3968675374529116
+        Linear Regression - R2 score for  LABEL_SpO2   -0.5404780605400326
+        Linear Regression - R2 score for  LABEL_Heartrate   0.5031201977264255
 lots of missing data (especially in the tests)
 class occurrence imbalance
 predicting rare events
@@ -29,4 +34,44 @@ use classifier output for regression
 feature scaling (use training distributions for mean and std.dev for testsets, PCA
     see notes from tutorial 04.03
 
-"""
+
+Here are some meta-data on the meaning and physical units of each variable in the data-set,
+in the first paragraph the vital signs and EtCO2 is treated, in the second paragraph the
+(laboratory) measurement tests.
+
+'Temp' is the body temperature [Celsius]
+'RRate' is the respiration rate of the patient [breath/min]
+ABPm, ABPd, ABPs are the mean arterial, diastolic and systolic blood pressures of the patient [mmHg],
+'Heartrate' is the number of heart beats per minute [heart beats/min],
+'SpO2' is pulse oximetry-measured oxygen saturation of the blood [%].
+'EtCo2' is the CO2 pressure during expiration [mmHg].
+
+PTT: a test which measures the time it takes for a blood clot to form [sec.]
+BUN: Blood urea nitrogen concentration [in mg per dl]
+Lactate: Lactate acid concentration [in mg per dl]
+Hgb: Haemoglobin concentration [g per dl]
+HCO3: Bicarbonate concentration [mmol per l]
+BaseExcess: Base excess measured in a blood gas analysis [mmol per l]
+Fibrinogen: A protein produced by the liver. This protein helps stop bleeding by helping blood clots to form. Concentration [mg per dl]
+Phosphate: Phosphate concetration [mg per dl]
+WBC: White blood cell count in blood [number of 1000s per microliter]
+Creatinine: Serum creatinine concentration used to determine renal function [mg per dl]
+PaCO2: Partial pressure of CO2 in arterial blood [mmHg] indicates effectiveness of lung function
+AST: Aspartate transaminase, a clinical test determining liver health [International unit per liter, biological activity]
+FiO2: Fraction of inspired oxygen in %
+Platelets: Thromocyte count in blood [numbers of 1000s per microliter]
+SaO2: Oxygen saturation in arterial blood analyzed with blood gas analysis [%]
+Glucose: Concentration of serum glucose [in mg per dl]
+Magnesium: Concentration of magnesium in blood [mmol per dl]
+Potassium: Concentration of potassium in blood [mmol per liter]
+Calcium: Concentration of calcium in blood [mg per dl]
+Alkalinephos: Biological activity of the enzyme Alkaline phosphotase [International unit per liter]
+Bilirubin_direct: Bilirubin concentration of conjugated bilirubin [mg per dl]
+Chloride: Chloride concentration in blood [mmol per l]
+Hct: Volume percentage of red blood cells in the blood [%]
+Bilirubin_total: Bilirubin concentration including conjugated / unconjugated bilirubin [mg per dl]
+TroponinI: Concentration of troponin in the blood [ng per ml]
+pH: Measurement of the acidity or alkalinity of the blood, with a standard unit for pH.
+
+Each of these measurements has a standard measurement modality and you can assume it was used in the majority of the cases,
+i.e. various measurements are taken from a blood sample which is then analyzed in the laboratory, for example.

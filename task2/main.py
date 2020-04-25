@@ -76,12 +76,12 @@ def load_labels(filename):
     return y_vital_signs, y_tests_, y_sepsis
 
 
-def preprocess_vital_signs(vital_signs):
+def preprocess_vital_signs(vital_signs_raw_, save=None):
     # Filling missing data with patient median or median of all patients
-    # vital_signs = vital_signs.head(n=1200)  # Split into a smaller set
+    # vital_signs_raw_ = vital_signs_raw_.head(n=1200)  # Split into a smaller set
 
     # Group by patient
-    patient_data = vital_signs.groupby(by="pid")
+    patient_data = vital_signs_raw_.groupby(by="pid")
     median_all_patients = patient_data.median().median()
 
     # Fill nans with median of patient or all patients
@@ -99,63 +99,72 @@ def preprocess_vital_signs(vital_signs):
             patient = patient.fillna(median_all_patients)
         patient_data_impunated = patient_data_impunated.append(patient)
 
-        # Write all features into a 1d array
-        # TODO Now taking time as well
-        patient_feature = patient.loc[:,
-                          ['Age', 'Heartrate', 'SpO2', 'ABPs', 'ABPm', 'ABPd', 'RRate',
-                           'Temp']].to_numpy().ravel()
-        pid = patient['pid'].mean()
-        patient_feature = np.append(pid, patient_feature)
-        patient_features_list.append(patient_feature)
-
         # print progress
         tools.progress_bar(cts, len(patient_data), start_time=starting_time)
         cts = cts + 1
 
     print("First patient after impunation: \n", patient_data_impunated.head(12))
 
-    # Matrix with all features
-    patient_features = np.asarray(patient_features_list)
-    return patient_features
+    one_to_twelve = np.tile(np.linspace(1, 12, 12, dtype=int), int(len(vital_signs_raw_) / 12))
+    patient_data_impunated.insert(1, "hour", one_to_twelve, True)
+    vital_signs = patient_data_impunated.set_index(['pid', 'hour'])
+
+    # Save vital signs to file
+    if save:
+        vital_signs.to_csv('data/vital_signs_median_impunated.csv')
+        print('Saved file to data/vital_signs_median_impunated.csv.')
+
+    return vital_signs
 
 
 if __name__ == '__main__':
-    # Load data
+    # Load raw feature data
     vital_signs_raw, tests = load_features("data/train_features.csv")
+    # Load preprocessed feature data
+    vital_signs_preprocessed_pd = pd.read_csv("data/vital_signs_median_impunated.csv")
+    vital_signs_preprocessed_pd = vital_signs_preprocessed_pd.set_index(['pid', 'hour'])
+    x_vital_pd = vital_signs_preprocessed_pd.unstack(level=1)
+
+    # Load label data
     y_vital_pd, y_tests_pd, y_sepsis_pd = load_labels("data/train_labels.csv")
-    y_vital = y_vital_pd.to_numpy()
+    y_vital_pd = y_vital_pd.set_index(['pid'])
+    y_vital_pd = y_vital_pd.sort_index(axis=0, level=0)
 
     # Inspect data
     # inspect_vital_signs(vital_signs)
 
     # Preprocess vital signs
     print("\n------ PREPROCESSING ------")
-    patient_features_vital = preprocess_vital_signs(vital_signs_raw)
-
-    # Sort X and y by pid
-    ind = np.argsort(patient_features_vital[:, 0])
-    patient_features_vital = patient_features_vital[ind]
-    ind2 = np.argsort(y_vital[:, 0])
-    y_vital = y_vital[ind2]
-    # Check pid's match in rows
-    for index in range(np.shape(patient_features_vital)[0]):
-        if not (y_vital[index, 0] == patient_features_vital[index, 0]):
-            print('[Error] pids arent the same!')
-            print(y_vital[index, 0], patient_features_vital[index, 0])
+    # vital_signs_preprocessed_pd = preprocess_vital_signs(vital_signs_raw, save=True)
+    # a = x_vital_per_patient.loc[:, 'Time':'Temp'].to_numpy()
+    # Check that the indices match for x and y
+    if all(x_vital_pd.index == y_vital_pd.index):
+        print('Indices match')
 
     # Split into test and training sets
     X_train, X_test, y_train, y_test = train_test_split(
-        patient_features_vital, y_vital, test_size=0.33, random_state=42)
+        x_vital_pd, y_vital_pd, test_size=0.33, random_state=42)
 
-    # Train linear regression model on all vital signs
+    # Training
     print("\n------ TRAINING ------")
-    reg = LinearRegression().fit(X_train[:, 1:], y_train[:, 1:])
-    y_hat = reg.predict(X_test[:, 1:])
+    # Train linear regression model for every label
+    labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
+    for index, label in enumerate(labels):
+        if label is 'LABEL_RRate':
+            # TODO a simple linear regression on RRate performs very badly, check data
+            #   it actually looks hard to predict based only on past values.
+            reg = LinearRegression().fit(X_train.loc[:, 'RRate'], y_train.loc[:, label])
+            y_hat = reg.predict(X_test.loc[:, 'RRate'])
+            print('Linear Regression - R2 score for', label, r2_score(y_hat, y_test.loc[:, label]))
 
-    # validate performance
-    print("\n------ VALIDATION ------")
-    print("Overall R2 score on test set:", reg.score(X_test[:, 1:], y_test[:, 1:]))
-    for column in range(np.shape(y_vital)[1] - 1):
-        print('Individual score:', r2_score(y_hat[:, column], y_test[:, column + 1]))
+        reg = LinearRegression().fit(X_train, y_train.loc[:, label])
+        y_hat = reg.predict(X_test)
+        print('Linear Regression - R2 score for', label, r2_score(y_hat, y_test.loc[:, label]))
 
-    # TODO Compare to individual regressions
+    # # validate performance
+    # print("\n------ VALIDATION ------")
+    # print("Overall R2 score on test set:", reg.score(X_test[:, 1:], y_test[:, 1:]))
+    # for column in range(np.shape(y_vital)[1] - 1):
+    #     print('Individual score:', r2_score(y_hat[:, column], y_test[:, column + 1]))
+    #
+    # # TODO Compare to individual regressions
