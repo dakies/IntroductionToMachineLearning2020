@@ -7,11 +7,38 @@ Data: 12 hours per patient, vital signs and test results
 Subtask 1: Predict whether medical tests will be ordered (classification with softmax)
 Subtask 2: Predict whether sepsis will occur (classification with softmax)
 Subtask 3: predict future means of vital signs (regression?)
-        # Train linear regression model for every label - gives very bad results except for heart rate
-        Linear Regression - R2 score for  LABEL_RRate   -0.36635056919554
-        Linear Regression - R2 score for  LABEL_ABPm   0.3968675374529116
-        Linear Regression - R2 score for  LABEL_SpO2   -0.5404780605400326
-        Linear Regression - R2 score for  LABEL_Heartrate   0.5031201977264255
+        - Linear regression on data impunated with median - gives quite bad values, time does not have a big impact, all features train better when
+        using all features except RRate --> Lasso and Ridge do not perform any better
+            Linear regression
+            R2 score -0.438 for LABEL_RRate trained only with RRate
+            R2 score -0.347 for LABEL_RRate trained with all features
+            R2 score -45.131 for LABEL_ABPm trained only with ABPm
+            R2 score 0.388 for LABEL_ABPm trained with all features
+            R2 score -50.294 for LABEL_SpO2 trained only with SpO2
+            R2 score -0.314 for LABEL_SpO2 trained with all features
+            R2 score -40.731 for LABEL_Heartrate trained only with Heartrate
+            R2 score 0.508 for LABEL_Heartrate trained with all features
+            Lasso regression
+            R2 score -0.850 for LABEL_RRate trained only with RRate
+            R2 score -0.775 for LABEL_RRate trained with all features
+            R2 score -114.072 for LABEL_ABPm trained only with ABPm
+            R2 score 0.367 for LABEL_ABPm trained with all features
+            R2 score -2664.816 for LABEL_SpO2 trained only with SpO2
+            R2 score -1.743 for LABEL_SpO2 trained with all features
+            R2 score -53.048 for LABEL_Heartrate trained only with Heartrate
+            R2 score 0.500 for LABEL_Heartrate trained with all features
+            Ridge regression
+            R2 score -0.438 for LABEL_RRate trained only with RRate
+            R2 score -0.347 for LABEL_RRate trained with all features
+            R2 score -45.131 for LABEL_ABPm trained only with ABPm
+            R2 score 0.388 for LABEL_ABPm trained with all features
+            R2 score -50.295 for LABEL_SpO2 trained only with SpO2
+            R2 score -0.314 for LABEL_SpO2 trained with all features
+            R2 score -40.731 for LABEL_Heartrate trained only with Heartrate
+            R2 score 0.508 for LABEL_Heartrate trained with all features
+        - Impunation with 0 is even worse for all models and training settings
+        - probably need to find some feature transformation / kernels
+        then do a mean shift and scale for features
 lots of missing data (especially in the tests)
 class occurrence imbalance
 predicting rare events
