@@ -40,24 +40,33 @@ if __name__ == '__main__':
     vital_signs_preprocessed_pd = vital_signs_preprocessed_pd.set_index(['pid', 'hour'])
     x_vital_pd = vital_signs_preprocessed_pd.unstack(level=1)
 
+    # # NOT SUCCESSFUL - Use only median instead of 12 features:
+    # x_vital_pd = vital_signs_preprocessed_pd.groupby(by="pid").median()
+
     # Load label data
     y_vital_pd, y_tests_pd, y_sepsis_pd = data_loading.load_labels("data/train_labels.csv")
     y_vital_pd = y_vital_pd.set_index(['pid'])
     y_vital_pd = y_vital_pd.sort_index(axis=0, level=0)
 
     # Inspect data
+    # inspection.inspect_w_seaborn(y_vital_pd)
     # inspection.inspect_vital_signs(vital_signs_raw)
 
     # Preprocess vital signs
     print("\n------ PREPROCESSING ------")
     # vital_signs_preprocessed_pd = preprocessing.preprocess_vital_signs(vital_signs_raw)
     # x_vital_pd = vital_signs_preprocessed_pd.unstack(level=1)
-    # a = x_vital_per_patient.loc[:, 'Time':'Temp'].to_numpy()
-    # Check that the indices match for x and y
-    if all(x_vital_pd.index == y_vital_pd.index):
-        print('Indices match')
+
+    # NOT SUCCESSFUL - Scale features
+    # vital_signs_preprocessed_pd_scaled = preprocessing.\
+    #     variable_scaling(vital_signs_preprocessed_pd, y_vital_pd)
+    # x_vital_pd = vital_signs_preprocessed_pd_scaled.unstack(level=1)
 
     # Split into test and training sets
+    # Check that the indices match for x and y
+    if not all(x_vital_pd.index == y_vital_pd.index):
+        print('Indices dont match')
+        os.abort()
     X_train, X_test, y_train, y_test = train_test_split(
         x_vital_pd, y_vital_pd, test_size=0.33, random_state=42)
 
@@ -66,10 +75,3 @@ if __name__ == '__main__':
     # Train linear regression model for every label
     model_fitting.linreg_ls_lasso_ridge(X_train, X_test, y_train, y_test)
 
-    # # validate performance
-    # print("\n------ VALIDATION ------")
-    # print("Overall R2 score on test set:", reg.score(X_test[:, 1:], y_test[:, 1:]))
-    # for column in range(np.shape(y_vital)[1] - 1):
-    #     print('Individual score:', r2_score(y_hat[:, column], y_test[:, column + 1]))
-    #
-    # # TODO Compare to individual regressions

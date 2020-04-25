@@ -8,6 +8,7 @@ import copy as cp
 import shelve
 import os
 import time
+import seaborn as sns
 
 import sklearn
 from sklearn.model_selection import train_test_split
@@ -48,3 +49,7 @@ def inspect_vital_signs(vital_signs):
 
     print(patient_data.mean())  #
     # print('NaNs in tests [%] \n', tests.isnull().sum() / len(tests))
+
+def inspect_w_seaborn(df):
+    # Violin plot
+    sns.violinplot(data=df)

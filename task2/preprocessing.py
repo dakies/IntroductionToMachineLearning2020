@@ -16,6 +16,7 @@ from sklearn.linear_model import Ridge, BayesianRidge
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Lasso
 from sklearn.metrics import r2_score
+import sklearn.preprocessing
 
 import tools
 import model_fitting
@@ -61,3 +62,13 @@ def preprocess_vital_signs(vital_signs_raw_, save=None):
         print('Saved file to data/vital_signs_median_impunated.csv.')
 
     return vital_signs
+
+
+def variable_scaling(x, y):
+    # scaler_x = sklearn.preprocessing.MinMaxScaler()
+    # scaler_x = sklearn.preprocessing.StandardScaler()
+    scaler_x = sklearn.preprocessing.RobustScaler()
+    x.loc[:, 'Time':'Temp'] = scaler_x.fit_transform(x.loc[:, 'Time':'Temp'])
+    # print(scaler_x.data_min_)
+    # print(scaler_x.data_max_)
+    return x
