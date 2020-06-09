@@ -10,7 +10,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn import linear_model
 from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
-from sklearn.impute import KNNImputer
 from sklearn import preprocessing
 
 # Load data
