@@ -91,17 +91,18 @@ if __name__ == '__main__':
     x_training = pd.read_csv('X_train_one_hot.csv').iloc[:, 1:]  # iloc to get rid of the index column
     y_training = training_data['Active']
 
-    # Dealing with imbalance
-    # x_training, y_training = handle_imbalance(x_training, y_training, type_='downsample')
-
     # Train test split
     X_train, X_test, y_train, y_test = train_test_split(
         x_training, y_training, test_size=0.33, random_state=random_state, stratify=y_training)
 
+    # Dealing with imbalance
+    X_train, y_train = handle_imbalance(X_train, y_train, type_='downsample')
+
     # Instantiate models
     print("Fitting models")
     models = {
-        "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, max_iter=300, verbose=1),
+        "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, max_iter=300, verbose=1,
+                                                          hidden_layer_sizes=1000),
         # TODO try class weighting
         "Support Vector Classifier": SVC(verbose=1, random_state=random_state),
         "Linear Support Vector Classifier": LinearSVC(verbose=1, random_state=random_state)
