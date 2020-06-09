@@ -22,3 +22,12 @@ Ideas for next steps:
 - try dealing with imbalance by weighting the cost in the support vector classifier
 - incorporate the order of the values
 - look at loss vs. epoch and gauge wether overfitting or not
+
+Tried new way of one hot encoding by encoding every character of the sequence separately. Performance increasers dramtically:
+F1_score of Multilayer Perceptron Classifier downsampling 0.65... --> 0.65.. public score
+F1_score of Multilayer Perceptron Classifier upsampling 0.88414 --> 0.8929 public score
+
+Try to train longer and with more training data (90% train 10% test)
+MLPClassifier(random_state=random_state, max_iter=1000, verbose=1,
+                                                          hidden_layer_sizes=1000, tol=0.000001)
+
