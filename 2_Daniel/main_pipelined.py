@@ -9,6 +9,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import HuberRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn import linear_model
 from sklearn.metrics import r2_score
@@ -21,15 +22,15 @@ train_data = pd.read_csv("train_features.csv")
 train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
-grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.first])
-grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.first])
+grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
 
 #Remove all patients with no data apart from age and time
 grouped = grouped.dropna(thresh=8)
 
 #Split into test and train
 y = train_labels
-x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.01)
+x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.5)
 
 # Moved this stuff into pipline to prevent leakage of information into validation data during scaling
 # #Impute with mode
@@ -52,7 +53,9 @@ labels = ['LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST',
 # Parameters to search over
 # {'svc__C': [1, 10, 100, 1000], 'svc__kernel': ['rbf']},
 param_grid = [
-   {'randomforestclassifier__min_samples_split': [2, 4], 'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+   {'randomforestclassifier__min_samples_split': [2, 4, 8],
+    'randomforestclassifier__min_samples_leaf': [1, 2, 4],
+    'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
 ]
 # Use Area Under the Receiver Operating Characteristic Curve (ROC AUC) as performance metric in Gridsearch
 score = 'roc_auc'
@@ -105,53 +108,50 @@ for index, label in enumerate(labels):
 # Lasso for prediction of future values
 print('Lasso start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
-# {'randomforestregressor__min_samples_split': [2, 4, 10]}
-alphas_lasso = [{'lasso__alpha': [0.01, 0.1, 1, 10, 100]}]
+
+param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
+# param_grid_reg = [
+#    {'randomforestregressor__min_samples_split': [2, 4, 8],
+#     'randomforestregressor__min_samples_leaf': [1, 2, 4],
+#     'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+# ]
+
 score = 'r2'
 for index, label in enumerate(labels):
-    score_simple_imputer_lasso = [-100, 'estimator']
-    for strategy in ('mean', 'median', 'most_frequent'):
+    estimator = make_pipeline(
+        SimpleImputer(missing_values=np.nan),
+        preprocessing.StandardScaler(),
+        # RandomForestRegressor()
+        linear_model.Lasso(max_iter=10000)
+    )
+    print("# Tuning hyper-parameters for label %s" % (label))
 
-        estimator = make_pipeline(
-            SimpleImputer(missing_values=np.nan, strategy=strategy),
-            preprocessing.StandardScaler(),
-            # RandForestRegressor
-            linear_model.Lasso(max_iter=10000)
-        )
-        print("# Tuning hyper-parameters for label %s" % (label))
+    reg = GridSearchCV(
+        estimator , param_grid_reg, scoring=score, n_jobs=-1
+    )
+    reg.fit(x_train, y_train.loc[:, label])
 
-        reg = GridSearchCV(
-            estimator , alphas_lasso, scoring=score, n_jobs=-1
-        )
-        reg.fit(x_train, y_train.loc[:, label])
+    print("Best parameters set found on development set:")
+    print()
+    print(reg.best_params_)
+    print()
+    print("Grid scores on development set:")
+    print()
+    means = reg.cv_results_['mean_test_score']
+    stds = reg.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, reg.cv_results_['params']):
+        print("%0.3f (+/-%0.03f) for %r"
+              % (mean, std * 2, params))
+    print()
 
-        print("Best parameters set found on development set:")
-        print()
-        print(reg.best_params_)
-        print()
-        print("Grid scores on development set:")
-        print()
-        means = reg.cv_results_['mean_test_score']
-        stds = reg.cv_results_['std_test_score']
-        for mean, std, params in zip(means, stds, reg.cv_results_['params']):
-            print("%0.3f (+/-%0.03f) for %r"
-                  % (mean, std * 2, params))
-        print()
-
-        print("Detailed classification report:")
-        print()
-        print("The model is trained on the full development set.")
-        print("The scores are computed on the full evaluation set.")
-        print()
-        y_true, y_pred = y_test.loc[:, label], reg.predict(x_test)
-        print(r2_score(y_true, y_pred))
-        print()
-
-        if reg.best_score_ > score_simple_imputer_lasso[0]:
-            score_simple_imputer_lasso[0] = reg.best_score_
-            score_simple_imputer_lasso[1] = reg
-
-    reg = score_simple_imputer_lasso[1]
+    print("Detailed classification report:")
+    print()
+    print("The model is trained on the full development set.")
+    print("The scores are computed on the full evaluation set.")
+    print()
+    y_true, y_pred = y_test.loc[:, label], reg.predict(x_test)
+    print(r2_score(y_true, y_pred))
+    print()
     results[label] = reg.predict(grouped_t)
 print('Lasso end')
 
