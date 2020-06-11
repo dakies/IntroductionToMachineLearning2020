@@ -16,21 +16,35 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
 from sklearn import preprocessing
 
-# Load data
+### Load data
 # test_data = pd.read_csv("test_features.csv", index_col="pid")
 train_data = pd.read_csv("train_features.csv")
 train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
-grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
-grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+### Impute
+train_data = train_data.ffill()
+train_data = train_data.bfill()
+test_features = test_features.ffill()
+test_features = test_features.bfill()
 
-#Remove all patients with no data apart from age and time
-grouped = grouped.dropna(thresh=8)
+### Feature Extraction - possibility to move this to pipeline?
+## Strategy 1 - Standard Statistics
+# grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+# grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+## Strategy 2 - Feature per time-step
+# Need to introduce pseudo time because 'Time' coloumn has different offset and therefore makes it difficult to pivot
+pseudo_time = list(range(0,12)) * int(train_data.shape[0]/12)
+train_data['pseudo_time'] = pseudo_time
+grouped = train_data.pivot(index='pid', columns='pseudo_time')
+
+pseudo_time = list(range(0,12)) * int(test_features.shape[0]/12)
+test_features['pseudo_time'] = pseudo_time
+grouped_t = test_features.pivot(index='pid', columns='pseudo_time')
 
 #Split into test and train
 y = train_labels
-x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.5)
+x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.1)
 
 # Moved this stuff into pipline to prevent leakage of information into validation data during scaling
 # #Impute with mode
@@ -51,11 +65,11 @@ labels = ['LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST',
        'LABEL_EtCO2', 'LABEL_Sepsis']
 
 # Parameters to search over
+# 'simpleimputer__strategy': ['mean', 'median', 'most_frequent']
 # {'svc__C': [1, 10, 100, 1000], 'svc__kernel': ['rbf']},
 param_grid = [
    {'randomforestclassifier__min_samples_split': [2, 4, 8],
-    'randomforestclassifier__min_samples_leaf': [1, 2, 4],
-    'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+    'randomforestclassifier__min_samples_leaf': [1, 2, 4]}
 ]
 # Use Area Under the Receiver Operating Characteristic Curve (ROC AUC) as performance metric in Gridsearch
 score = 'roc_auc'
@@ -64,13 +78,13 @@ score = 'roc_auc'
 results = pd.DataFrame()
 results['pid'] = test_features['pid'].unique()
 
-print('SVM start')
+print('Classification start')
 for index, label in enumerate(labels):
     estimator = make_pipeline(
-        SimpleImputer(),
+        # SimpleImputer(),
         preprocessing.StandardScaler(),
         # SVC(probability=True, cache_size=1000, class_weight='balanced')
-        RandomForestClassifier(max_depth=None)
+        RandomForestClassifier(class_weight='balanced')
     )
 
     print("# Tuning hyper-parameters for label %s" % (label))
@@ -106,7 +120,7 @@ for index, label in enumerate(labels):
 
 
 # Lasso for prediction of future values
-print('Lasso start')
+print('Regression start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
 
 param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
@@ -153,7 +167,7 @@ for index, label in enumerate(labels):
     print(r2_score(y_true, y_pred))
     print()
     results[label] = reg.predict(grouped_t)
-print('Lasso end')
+print('Regression end')
 
 #Save Results
 results.to_csv('prediction.zip', index=False, float_format='%.3f', compression='zip')
