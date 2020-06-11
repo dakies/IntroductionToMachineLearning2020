@@ -2,10 +2,14 @@
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+from sklearn.metrics import make_scorer
+from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import HuberRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn import linear_model
 from sklearn.metrics import r2_score
@@ -18,26 +22,27 @@ train_data = pd.read_csv("train_features.csv")
 train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
-grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std])
-grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std])
+grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
 
 #Remove all patients with no data apart from age and time
 grouped = grouped.dropna(thresh=8)
 
 #Split into test and train
 y = train_labels
-x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.1)
+x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.5)
 
-#Impute with mode
-imputer = SimpleImputer(strategy="most_frequent")
-x_train = imputer.fit_transform(x_train)
-x_test = imputer.fit_transform(x_test)
-x_t = imputer.fit_transform(grouped_t)
-
-#Scale
-x_train = preprocessing.scale(x_train)
-x_test = preprocessing.scale(x_test)
-x_t = preprocessing.scale(x_t)
+# Moved this stuff into pipline to prevent leakage of information into validation data during scaling
+# #Impute with mode
+# imputer = SimpleImputer(strategy="most_frequent")
+# x_train = imputer.fit_transform(x_train)
+# x_test = imputer.fit_transform(x_test)
+# x_t = imputer.fit_transform(grouped_t)
+#
+# #Scale
+# x_train = preprocessing.scale(x_train)
+# x_test = preprocessing.scale(x_test)
+# x_t = preprocessing.scale(x_t)
 
 # Support vector machine with Gridsearch
 labels = ['LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST',
@@ -46,9 +51,11 @@ labels = ['LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST',
        'LABEL_EtCO2', 'LABEL_Sepsis']
 
 # Parameters to search over
-#{'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['linear']}
+# {'svc__C': [1, 10, 100, 1000], 'svc__kernel': ['rbf']},
 param_grid = [
-  {'C': [1, 10, 100, 1000], 'kernel': ['rbf']},
+   {'randomforestclassifier__min_samples_split': [2, 4, 8],
+    'randomforestclassifier__min_samples_leaf': [1, 2, 4],
+    'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
 ]
 # Use Area Under the Receiver Operating Characteristic Curve (ROC AUC) as performance metric in Gridsearch
 score = 'roc_auc'
@@ -59,10 +66,17 @@ results['pid'] = test_features['pid'].unique()
 
 print('SVM start')
 for index, label in enumerate(labels):
-    print("# Tuning hyper-parameters for %s for label %s" % (score, label))
+    estimator = make_pipeline(
+        SimpleImputer(),
+        preprocessing.StandardScaler(),
+        # SVC(probability=True, cache_size=1000, class_weight='balanced')
+        RandomForestClassifier(max_depth=None)
+    )
+
+    print("# Tuning hyper-parameters for label %s" % (label))
 
     clf = GridSearchCV(
-        SVC(probability=True, cache_size=1000), param_grid, scoring=score, n_jobs=-1, cv=2
+        estimator, param_grid, n_jobs=-1, scoring=score, cv=2
     )
     clf.fit(x_train, y_train.loc[:, label].values)
 
@@ -86,20 +100,34 @@ for index, label in enumerate(labels):
     print()
     y_true, y_pred = y_test.loc[:, label], clf.predict(x_test)
     print(classification_report(y_true, y_pred))
-    print()
-    results[label] = clf.predict_proba(x_t)[:, 1]
+
+    results[label] = clf.predict_proba(grouped_t)[:, 1]
+
 
 
 # Lasso for prediction of future values
 print('Lasso start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
-alphas_lasso = [{'alpha': [0.01, 0.1, 1, 10, 100]}]
+
+param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
+# param_grid_reg = [
+#    {'randomforestregressor__min_samples_split': [2, 4, 8],
+#     'randomforestregressor__min_samples_leaf': [1, 2, 4],
+#     'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+# ]
+
 score = 'r2'
 for index, label in enumerate(labels):
-    print("# Tuning hyper-parameters for %s for label %s" % (score, label))
+    estimator = make_pipeline(
+        SimpleImputer(missing_values=np.nan),
+        preprocessing.StandardScaler(),
+        # RandomForestRegressor()
+        linear_model.Lasso(max_iter=10000)
+    )
+    print("# Tuning hyper-parameters for label %s" % (label))
 
     reg = GridSearchCV(
-        linear_model.Lasso(max_iter=10000), alphas_lasso, scoring=score, n_jobs=-1
+        estimator , param_grid_reg, scoring=score, n_jobs=-1
     )
     reg.fit(x_train, y_train.loc[:, label])
 
@@ -124,7 +152,7 @@ for index, label in enumerate(labels):
     y_true, y_pred = y_test.loc[:, label], reg.predict(x_test)
     print(r2_score(y_true, y_pred))
     print()
-    results[label] = reg.predict(x_t)
+    results[label] = reg.predict(grouped_t)
 print('Lasso end')
 
 #Save Results
