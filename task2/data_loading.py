@@ -40,10 +40,10 @@ def load_labels(filename):
     # Read inputs
     data = pd.read_csv(filename)
 
-    y_tests_ = ['pid', 'LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST', 'LABEL_Alkalinephos',
+    y_tests_ = data[['pid', 'LABEL_BaseExcess', 'LABEL_Fibrinogen', 'LABEL_AST', 'LABEL_Alkalinephos',
                 'LABEL_Bilirubin_total', 'LABEL_Lactate', 'LABEL_TroponinI', 'LABEL_SaO2',
-                'LABEL_Bilirubin_direct', 'LABEL_EtCO2']
+                'LABEL_Bilirubin_direct', 'LABEL_EtCO2']]
     y_vital_signs = data[['pid', 'LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']]
-    y_sepsis = data[['LABEL_Sepsis']]
+    y_sepsis = data[['pid','LABEL_Sepsis']]
 
     return y_vital_signs, y_tests_, y_sepsis

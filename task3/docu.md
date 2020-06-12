@@ -30,4 +30,5 @@ F1_score of Multilayer Perceptron Classifier upsampling 0.88414 --> 0.8929 publi
 Try to train longer and with more training data (90% train 10% test)
 MLPClassifier(random_state=random_state, max_iter=1000, verbose=1,
                                                           hidden_layer_sizes=1000, tol=0.000001)
+F1_score of Multilayer Perceptron Classifier 0.9045936395759718
 
