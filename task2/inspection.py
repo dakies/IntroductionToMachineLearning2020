@@ -29,6 +29,7 @@ import model_fitting
     Subtask 3: predict future means of vital signs (regression?)
 """
 
+
 def inspect_vital_signs(vital_signs):
     # Set output options
     pd.set_option('display.max_rows', 100)
@@ -50,6 +51,12 @@ def inspect_vital_signs(vital_signs):
     print(patient_data.mean())  #
     # print('NaNs in tests [%] \n', tests.isnull().sum() / len(tests))
 
+
 def inspect_w_seaborn(df):
     # Violin plot
     sns.violinplot(data=df)
+
+
+def inspect_vital_sign_labels(vital_signs_pd):
+    fig, (ax1, ax2) = plt.subplots(2, 2)
+

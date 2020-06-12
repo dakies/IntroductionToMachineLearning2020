@@ -28,11 +28,11 @@ def linreg_ls_lasso_ridge(X_train, X_test, y_train, y_test):
     # Linear regression
     print('\nLinear regression')
     for index, label in enumerate(labels):
-        # Using single feature
-        reg = LinearRegression().fit(X_train.loc[:, 'RRate'], y_train.loc[:, label])
-        y_hat = reg.predict(X_test.loc[:, 'RRate'])
-        print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
-              'for', label, 'trained only with', features[index])
+        # # Using single feature
+        # reg = LinearRegression().fit(X_train.loc[:, features[index]], y_train.loc[:, label])
+        # y_hat = reg.predict(X_test.loc[:, features[index]])
+        # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
+        #       'for', label, 'trained only with', features[index])
 
         # Using all features
         reg = LinearRegression().fit(X_train, y_train.loc[:, label])
@@ -50,42 +50,42 @@ def linreg_ls_lasso_ridge(X_train, X_test, y_train, y_test):
     print('\nLasso regression')
     alpha_lasso = 1
     for index, label in enumerate(labels):
-        # Using single feature
-        reg = Lasso(alpha=alpha_lasso).fit(X_train.loc[:, 'RRate'], y_train.loc[:, label])
-        y_hat = reg.predict(X_test.loc[:, 'RRate'])
-        print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
-              'for', label, 'trained only with', features[index])
+        # # Using single feature
+        # reg = Lasso(alpha=alpha_lasso).fit(X_train.loc[:, features[index]], y_train.loc[:, label])
+        # y_hat = reg.predict(X_test.loc[:, features[index]])
+        # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
+        #       'for', label, 'trained only with', features[index])
 
         # Using all features
         reg = Lasso(alpha=alpha_lasso).fit(X_train, y_train.loc[:, label])
         y_hat = reg.predict(X_test)
         print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
               'for', label, 'trained with all features')
-
-        # # Using all features except time
-        # reg = Lasso(alpha=alpha_lasso).fit(X_train.loc[:, 'Age':'Temp'], y_train.loc[:, label])
-        # y_hat = reg.predict(X_test.loc[:, 'Age':'Temp'])
-        # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
-        #       'for', label, 'trained with all features except time')
-
+    #
+    #     # # Using all features except time
+    #     # reg = Lasso(alpha=alpha_lasso).fit(X_train.loc[:, 'Age':'Temp'], y_train.loc[:, label])
+    #     # y_hat = reg.predict(X_test.loc[:, 'Age':'Temp'])
+    #     # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
+    #     #       'for', label, 'trained with all features except time')
+    #
     # Ridge regression
     print('\nRidge regression')
     alpha_ridge = 1
     for index, label in enumerate(labels):
-        # Using single feature
-        reg = Ridge(alpha=alpha_ridge).fit(X_train.loc[:, 'RRate'], y_train.loc[:, label])
-        y_hat = reg.predict(X_test.loc[:, 'RRate'])
-        print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
-              'for', label, 'trained only with', features[index])
+        # # Using single feature
+        # reg = Ridge(alpha=alpha_ridge).fit(X_train.loc[:, features[index]], y_train.loc[:, label])
+        # y_hat = reg.predict(X_test.loc[:, features[index]])
+        # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
+        #       'for', label, 'trained only with', features[index])
 
         # Using all features
         reg = Ridge(alpha=alpha_ridge).fit(X_train, y_train.loc[:, label])
         y_hat = reg.predict(X_test)
         print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
               'for', label, 'trained with all features')
-
-        # # Using all features except time
-        # reg = Ridge(alpha=alpha_ridge).fit(X_train.loc[:, 'Age':'Temp'], y_train.loc[:, label])
-        # y_hat = reg.predict(X_test.loc[:, 'Age':'Temp'])
-        # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
-        #       'for', label, 'trained with all features except time')
+    #
+    #     # # Using all features except time
+    #     # reg = Ridge(alpha=alpha_ridge).fit(X_train.loc[:, 'Age':'Temp'], y_train.loc[:, label])
+    #     # y_hat = reg.predict(X_test.loc[:, 'Age':'Temp'])
+    #     # print('R2 score', "%.3f" % r2_score(y_hat, y_test.loc[:, label]),
+    #     #       'for', label, 'trained with all features except time')

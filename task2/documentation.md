@@ -8,7 +8,7 @@ Subtask 1: Predict whether medical tests will be ordered (classification with so
 Subtask 2: Predict whether sepsis will occur (classification with softmax)
 Subtask 3: predict future means of vital signs (regression?)
         - Linear regression on data impunated with median - gives quite bad values, time does not have a big impact, all features train better when
-        using all features except RRate --> Lasso and Ridge do not perform any better
+        using all --> Lasso and Ridge do not perform any better
             random seed  for train test split: 42
             Linear regression
             R2 score -0.453 for LABEL_RRate trained only with RRate
@@ -41,6 +41,8 @@ Subtask 3: predict future means of vital signs (regression?)
         - do a mean shift and scale for features: tried with 3 different rescalings, nothing improves
         - trying to predict with median instead of all 12 values
         - probably need to find some feature transformation / kernels
+        - Removing outliers doesn't work, adding the labels from subtask 1,2 improves the score, adding more features does as well
+        - Lasso gets way worse with rescaling, even when only with feature means
 
 lots of missing data (especially in the tests)
 class occurrence imbalance
