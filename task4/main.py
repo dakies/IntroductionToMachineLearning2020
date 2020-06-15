@@ -26,36 +26,27 @@ from sklearn.metrics import accuracy_score
 random_state = 4
 np.random.seed(random_state)
 
+def checkfeature(image_name):
+    # Load images from directory
+    image_directory = "food"
+    image_list = os.listdir(image_directory)
+    feature_list = []
+    image_name_list = []
 
-def piece_together_feature_files():
-    train_features = pd.DataFrame()
-    for i in range(10):
-        current_batch = pd.read_csv(("ResNet50_features/x_train_Resnet50_avg_pool_" + str(i) + ".csv")).iloc[:, 1:]
-        train_features = train_features.append(current_batch)
-        print(f"Batch {i} appended. Size: {current_batch.shape}")
-        del current_batch
-    current_batch = pd.read_csv("ResNet50_features/x_train_Resnet50_avg_pool_end.csv").iloc[:, 1:]
-    train_features = train_features.append(current_batch)
-    print(f"Batch end appended. Size: {current_batch.shape}")
-    del current_batch
-    train_features.to_csv("ResNet50_features/x_train_Resnet50_avg_pool_total.csv")
-    return train_features
+    # Load ResNet50
+    model_notop = ResNet50(weights='imagenet', include_top=False, pooling='avg')
+    # Load image and preprocess
+    img = image.load_img(os.path.join(image_directory, image_name), target_size=(224, 224))
+    x = image.img_to_array(img)
+    x = np.expand_dims(x, axis=0)
+    x = preprocess_input(x)
 
+    # Compute features
+    features = model_notop.predict(x)
 
-def piece_together_feature_files_test():
-    test_features = pd.DataFrame()
-    for i in range(10):
-        if i == 0:
-            continue
-        current_batch = pd.read_csv(("ResNet50_features/x_train_Resnet50_avg_pool_" + str(i) + ".csv")).iloc[:, 1:]
-        test_features = test_features.append(current_batch)
-        del current_batch
-        print(f"Batch {i} appended.")
-    current_batch = pd.read_csv("ResNet50_features/x_train_Resnet50_avg_pool_end.csv").iloc[:, 1:]
-    test_features = test_features.append(current_batch)
-    del current_batch
-    test_features.to_csv("ResNet50_features/x_test_Resnet50_avg_pool_total.csv")
-    return test_features
+    # Todo:change these vals
+    diff = x_train[2, :2048] - features
+    print(diff.max())
 
 
 def extract_features_from_images():
@@ -107,102 +98,117 @@ def extract_features_from_images():
         return feature_list, image_name_list
 
 
-def create_balanced_training_data(x_input):
-    # Create random indexes
-    random_indexes = np.random.choice(x_input.index,
-                                      size=int(len(x_input.index) / 2),
-                                      replace=False)
-    # switch image B and C for half the training set randomly to have an balanced dataset of 1 and 0 classifications
-    x_input_balanced = x_input
-    x_input_balanced.iloc[random_indexes, 2048:4096] = x_input.iloc[random_indexes, 4096:]
-    x_input_balanced.iloc[random_indexes, 4096:] = x_input.iloc[random_indexes, 2048:4096]
-    labels = pd.DataFrame(np.ones((len(x_input.index), 1)))
-    labels.iloc[random_indexes] = 0
-
-    return x_input_balanced, labels
-
-
 def create_feature_vectors():
-    # Try to load preexisting data
-    # try:
-    #     train_features = pd.read_csv("x_train_Resnet50_avg_pool_balanced_10percent.csv").iloc[:, 1:]
-    #     test_features = pd.read_csv("x_test_Resnet50_avg_pool.csv").iloc[:, 1:]
-    #     test_features = pd.DataFrame()
-    #     train_labels = pd.read_csv("y_train_Resnet50_avg_pool_balanced_10percent.csv").iloc[:, 1:]
-    #     print("[create_feature_vectors] Loaded preexisting feature vectors.")
-    #     return train_features, train_labels, test_features
-    # except FileNotFoundError:
-    #     print("[create_feature_vectors] Creating feature vectors...")
     # Prepare directory
     dir_name = "ResNet50_features_balanced"
     os.makedirs(dir_name, exist_ok=True)
 
+    # Try to load preexisting data
+    try:
+        train_features = np.load(os.path.join(dir_name,
+                                              "x_train_Resnet50_avg_pool_balanced__all_features.npy"))
+        # test_features = pd.read_csv("x_test_Resnet50_avg_pool.csv").iloc[:, 1:]
+        train_triplets_balanced = pd.read_csv(
+            os.path.join(dir_name,
+                         "train_triplets_balanced_w_label.csv")).iloc[:, 1:]
+        print("[create_feature_vectors] Loaded preexisting feature vectors.")
+        return train_features, train_triplets_balanced
+    except FileNotFoundError:
+        print("[create_feature_vectors] Creating feature vectors...")
+
     # Truncate .jpg off of list of images
     list_of_image_names = [os.path.splitext(image_filename)[0] for image_filename in list_of_images]
 
-    # # Create random indexes
-    # random_indexes = np.random.choice(train_triplets.index,
-    #                                   size=int(len(train_triplets.index) / 2),
-    #                                   replace=False)
-    # # switch image B and C for half the training set randomly to have an balanced dataset of 1 and 0 classifications
-    # train_triplets_balanced = pd.read_table("train_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
-    # train_triplets_balanced.iloc[random_indexes, 1] = train_triplets.iloc[random_indexes, 2]
-    # train_triplets_balanced.iloc[random_indexes, 2] = train_triplets.iloc[random_indexes, 1]
-    # train_labels = pd.DataFrame(np.ones((len(train_triplets.index), 1), dtype=int))
-    # train_labels.iloc[random_indexes] = 0
+    # Create random indexes
+    random_indexes = np.random.choice(train_triplets.index,
+                                      size=int(len(train_triplets.index) / 2),
+                                      replace=False)
+    # switch image B and C for half the training set randomly to have an balanced dataset of 1 and 0 classifications
+    train_triplets_balanced = pd.read_table("train_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
+    train_triplets_balanced.iloc[random_indexes, 1] = train_triplets.iloc[random_indexes, 2]
+    train_triplets_balanced.iloc[random_indexes, 2] = train_triplets.iloc[random_indexes, 1]
+    train_labels = pd.DataFrame(np.ones((len(train_triplets.index), 1), dtype=int))
+    train_labels.iloc[random_indexes] = 0
 
     # Create train features dataframe
-    train_features = pd.DataFrame()
+    train_features_temp = pd.DataFrame()
+    batch = int(0)
     print("[create_feature_vectors] Training features...")
-    for index, row in train_triplets.iterrows():
+    for index, row in train_triplets_balanced.iterrows():
         # index = list_of_image_names.index(row['A']) # Find the index of an imagename in the feature list
         # list_of_features[index] # get the feature at that index
         features = np.concatenate((
-            np.ones((1, 1)).reshape(-1) * index,
             list_of_features[list_of_image_names.index(row['A'])].reshape(-1),
             list_of_features[list_of_image_names.index(row['B'])].reshape(-1),
             list_of_features[list_of_image_names.index(row['C'])].reshape(-1)
         ))
         # The following line takes at least 40% of the execution time
-        train_features = train_features.append(pd.DataFrame(features.reshape(1, -1)))
-        if index % 10000 == 0 and index != 0:
-            print(index / len(train_triplets.index))
-            train_features.to_csv(os.path.join(
+        train_features_temp = train_features_temp.append(pd.DataFrame(features.reshape(1, -1)))
+        if index % 6000 == 0 and index != 0 or index == len(train_triplets_balanced.index) - 1:
+            print(index / (len(train_triplets_balanced.index) - 1), "Batch", batch)
+            train_features_temp.to_csv(os.path.join(
                 dir_name,
-                ("x_train_Resnet50_avg_pool_" + str(int(index / 10000)) + ".csv")))
-            del train_features
-            train_features = pd.DataFrame()
+                ("x_train_Resnet50_avg_pool_balanced_" + str(batch) + ".csv")))
+            del train_features_temp
+            train_features_temp = pd.DataFrame()
+            batch += 1
+
+    # Save labels
+    train_triplets_balanced.insert(0, "label", train_labels, True)
+    train_triplets_balanced.to_csv(os.path.join(
+        dir_name,
+        "train_triplets_balanced_w_label.csv"))
     print("[create_feature_vectors] Training features done.")
-    train_features.to_csv(os.path.join(
-                dir_name,
-                "x_train_Resnet50_avg_pool_end.csv"))
-    del train_features
 
     # Create test features dataframe
     test_features = pd.DataFrame()
+    batch = int(0)
     print("[create_feature_vectors] Test features...")
     for index, row in test_triplets.iterrows():
         # index = list_of_image_names.index(row['A']) # Find the index of an imagename in the feature list
         # list_of_features[index] # get the feature at that index, reshape(-1) to make a 1d array
         features = np.concatenate((
-            np.ones((1, 1)).reshape(-1) * index,
             list_of_features[list_of_image_names.index(row['A'])].reshape(-1),
             list_of_features[list_of_image_names.index(row['B'])].reshape(-1),
             list_of_features[list_of_image_names.index(row['C'])].reshape(-1)
         ))
         test_features = test_features.append(pd.DataFrame(features.reshape(1, -1)))
-        if index % 10000 == 0 and index != 0:
-            print(index / len(test_triplets.index))
+        if (index % 6000 == 0 and index != 0) or index == len(test_triplets.index) - 1:
+            print(index / (len(test_triplets.index) - 1), "Batch", batch)
             test_features.to_csv(os.path.join(
                 dir_name,
-                ("x_test_Resnet50_avg_pool_" + str(int(index / 10000)) + ".csv")))
+                ("x_test_Resnet50_avg_pool_" + str(batch) + ".csv")))
             del test_features
             test_features = pd.DataFrame()
+            batch += 1
+
     print("[create_feature_vectors] Test features done.")
-    test_features.to_csv(os.path.join(
-                dir_name,
-                "x_test_Resnet50_avg_pool_end.csv"))
+
+    # Piece together feature vectors
+    test_features = piece_together_feature_batches(dir_name, "x_test_Resnet50_avg_pool_")
     del test_features
+    train_features = piece_together_feature_batches(dir_name, "x_train_Resnet50_avg_pool_balanced_")
+
+    return train_features, train_triplets_balanced
+
+
+def piece_together_feature_batches(directory_name, file_name):
+    all_features = pd.read_csv(os.path.join(directory_name, (file_name + str(0) + ".csv"))).iloc[:, 1:].to_numpy()
+    batch = int(1)
+    try:
+        while True:
+            current_batch = pd.read_csv(os.path.join(directory_name, (file_name + str(batch) + ".csv"))).iloc[:, 1:]
+            current_batch_np = current_batch.to_numpy()
+            all_features = np.concatenate((all_features, current_batch), axis=0)
+            print(f"Batch {batch} appended. Batch size: {current_batch_np.shape}, Total size: {all_features.shape}")
+            del current_batch
+            del current_batch_np
+            batch += 1
+    except FileNotFoundError:
+        print(f"[piece_together_feature_batches] {file_name} batches finished or no files found.")
+
+    np.save(os.path.join(directory_name, (file_name + "_all_features.csv")), all_features)
+    return all_features
 
 
 if __name__ == '__main__':
@@ -214,35 +220,33 @@ if __name__ == '__main__':
     test_triplets = pd.read_table("test_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
 
     # Create feature vectors and labels
-    create_feature_vectors()
+    x_train, train_triplets_balanced_with_y = create_feature_vectors()
+    y_train_labels = train_triplets_balanced_with_y.iloc[:, 0]
 
-    # # Train test split
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     x_train, y_train_labels, test_size=0.33, random_state=random_state, stratify=y_train_labels)
-    #
-    # # Instantiate models
-    # print("Fitting models")
-    # models = {
-    #     # "Support Vector Classifier": SVC(verbose=1, random_state=random_state),
-    #     # "Linear Support Vector Classifier": LinearSVC(verbose=1, random_state=random_state, max_iter=10000),
-    #     "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, verbose=1,
-    #                                                       tol=0.0000001)
-    # }
-    #
-    # # Train and predict for models
-    # for model_name, model in models.items():
-    #     print("Training", model_name, "...")
-    #     model.fit(X_train, y_train)
-    #     y_test_hat = model.predict(X_test)
-    #     print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
-    #
-    # # Evaluate
-    # for model_name, model in models.items():
-    #     y_test_hat = model.predict(X_test)
-    #     print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
+    # Free up memory
+    del list_of_features
+    del list_of_images
 
-    # TODO: Find out how to create the training/test data:
-    # --
-    # -- the encoding of the images from ResNet50 has shape (1, 7, 7, 2048), (huge!), flatten into a 1D array?
-    # --- there are also ways to modify the encoding such that a pooling is applied at the end to give a lower
-    # --- dimensional encoding that might be more tractable
+    # Train test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        x_train, y_train_labels, test_size=0.33, random_state=random_state, stratify=y_train_labels)
+
+    # Instantiate models
+    print("Fitting models")
+    models = {
+        # "Support Vector Classifier": SVC(verbose=1, random_state=random_state),
+        "Linear Support Vector Classifier": LinearSVC(verbose=1, random_state=random_state, max_iter=300),
+        "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, verbose=1)
+    }
+
+    # Train and predict for models
+    for model_name, model in models.items():
+        print("Training", model_name, "...")
+        model.fit(X_train, y_train)
+        y_test_hat = model.predict(X_test)
+        print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
+
+    # Evaluate
+    for model_name, model in models.items():
+        y_test_hat = model.predict(X_test)
+        print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
