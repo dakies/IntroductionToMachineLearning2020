@@ -5,12 +5,15 @@ import time
 import pickle
 import pandas as pd
 import pprofile
+# from livelossplot import PlotLossesKeras
 
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.applications.resnet50 import ResNet50
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.resnet50 import preprocess_input, decode_predictions
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
 
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
@@ -207,46 +210,76 @@ def piece_together_feature_batches(directory_name, file_name):
     except FileNotFoundError:
         print(f"[piece_together_feature_batches] {file_name} batches finished or no files found.")
 
-    np.save(os.path.join(directory_name, (file_name + "_all_features.csv")), all_features)
+    np.save(os.path.join(directory_name, (file_name + "_all_features")), all_features)
     return all_features
 
 
 if __name__ == '__main__':
-    # Extract features from images
-    list_of_features, list_of_images = extract_features_from_images()
+    # Load ResNet50 features from preexisting data or create if they don't exist
+    try:
+        # TODO Insert path to .npy and .csv files
+        x_train = np.load("ResNet50_features_balanced/x_train_Resnet50_avg_pool_balanced__all_features.npy")
+        train_triplets_balanced_with_y = pd.read_csv(
+            "ResNet50_features_balanced/train_triplets_balanced_w_label.csv").iloc[:, 1:]
+        print("Loaded preexisting feature vectors.")
+    except FileNotFoundError:
+        print("[create_feature_vectors] Creating feature vectors...")
+        # Extract features from images
+        list_of_features, list_of_images = extract_features_from_images()
+        # Load traning and test triplets
+        train_triplets = pd.read_table("train_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
+        test_triplets = pd.read_table("test_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
+        # Create feature vectors
+        x_train, train_triplets_balanced_with_y = create_feature_vectors()
+        # Free up memory
+        del list_of_features
+        del list_of_images
 
-    # # Load traning and test triplets
-    train_triplets = pd.read_table("train_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
-    test_triplets = pd.read_table("test_triplets.txt", names=['A', 'B', 'C'], delimiter=' ', dtype=str)
+    # Extract labels
+    y_train = train_triplets_balanced_with_y.iloc[:, 0].to_numpy()
 
-    # Create feature vectors and labels
-    x_train, train_triplets_balanced_with_y = create_feature_vectors()
-    y_train_labels = train_triplets_balanced_with_y.iloc[:, 0]
+    # Build Neural Net
+    model = Sequential()
+    model.add(Dense(np.shape(x_train)[1], input_dim=np.shape(x_train)[1], activation='relu'))
+    model.add(Dense(2000, activation='relu'))
+    model.add(Dense(500, activation='relu'))
+    model.add(Dense(1, activation='sigmoid'))
 
-    # Free up memory
-    del list_of_features
-    del list_of_images
+    # Compile model
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    print("Starting training of the model ...")
+    model.fit(x_train, y_train, validation_split=0.33, epochs=15, batch_size=256, shuffle=True)
 
-    # Train test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        x_train, y_train_labels, test_size=0.33, random_state=random_state, stratify=y_train_labels)
+    # Predict for submission set
+    del x_train
+    # TODO Insert path to .npy file
+    X_submission = np.load("ResNet50_features_balanced/x_test_Resnet50_avg_pool__all_features.npy")
+    y_submission = model.predict(X_submission)
+    y_submission[y_submission > 0.5] = int(1)
+    y_submission[y_submission < 0.5] = int(0)
+    # TODO Change name of output so the old one isn't overwritten
+    np.savetxt("ResNet50_vanilla_dense_test", y_submission.astype(dtype=int), fmt='%d')
 
-    # Instantiate models
-    print("Fitting models")
-    models = {
-        # "Support Vector Classifier": SVC(verbose=1, random_state=random_state),
-        "Linear Support Vector Classifier": LinearSVC(verbose=1, random_state=random_state, max_iter=300),
-        "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, verbose=1)
-    }
+    # ---SKLEARN---
+    # # Train test split
+    # X_train, X_test, y_train, y_test = train_test_split(
+    #     x_train, y_train, test_size=0.5, random_state=random_state, stratify=y_train)
 
-    # Train and predict for models
-    for model_name, model in models.items():
-        print("Training", model_name, "...")
-        model.fit(X_train, y_train)
-        y_test_hat = model.predict(X_test)
-        print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
-
-    # Evaluate
-    for model_name, model in models.items():
-        y_test_hat = model.predict(X_test)
-        print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
+    # print("Fitting models")
+    # models = {
+    #     # "Support Vector Classifier": SVC(verbose=1, random_state=random_state),
+    #     "Linear Support Vector Classifier": LinearSVC(verbose=1, random_state=random_state, max_iter=300),
+    #     "Multilayer Perceptron Classifier": MLPClassifier(random_state=random_state, verbose=1)
+    # }
+    #
+    # # Train and predict for models
+    # for model_name, model in models.items():
+    #     print("Training", model_name, "...")
+    #     model.fit(X_train, y_train)
+    #     y_test_hat = model.predict(X_test)
+    #     print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
+    #
+    # # Evaluate
+    # for model_name, model in models.items():
+    #     y_test_hat = model.predict(X_test)
+    #     print("Accuracy score of", model_name, accuracy_score(y_true=y_test, y_pred=y_test_hat))
