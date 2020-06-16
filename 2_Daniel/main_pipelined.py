@@ -2,11 +2,12 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.feature_selection import SelectFromModel
 from sklearn.metrics import make_scorer
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import HuberRegressor
@@ -22,11 +23,9 @@ train_data = pd.read_csv("train_features.csv")
 train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
-grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
-grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
+grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
+grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
 
-#Remove all patients with no data apart from age and time
-grouped = grouped.dropna(thresh=8)
 
 #Split into test and train
 y = train_labels
@@ -70,6 +69,7 @@ for index, label in enumerate(labels):
         SimpleImputer(),
         preprocessing.StandardScaler(),
         # SVC(probability=True, cache_size=1000, class_weight='balanced')
+        SelectFromModel(LinearSVC(C=0.01, penalty="l1", dual=False), prefit=True),
         RandomForestClassifier(max_depth=None)
     )
 
