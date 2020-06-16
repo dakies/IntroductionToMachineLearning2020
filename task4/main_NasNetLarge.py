@@ -15,6 +15,7 @@ from tensorflow.keras.applications.resnet50 import preprocess_input, decode_pred
 
 from tensorflow.keras.applications import NASNetLarge
 from tensorflow.keras.preprocessing import image
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
@@ -32,6 +33,7 @@ from sklearn.metrics import accuracy_score
 # Random states
 random_state = 4
 np.random.seed(random_state)
+tf.random.set_seed(random_state)
 
 
 def checkfeature(image_name):
@@ -228,11 +230,34 @@ def piece_together_feature_batches(directory_name, file_name):
     return all_features
 
 
+def train_val_split(train_triplets, threshold: int):
+    # Creates a test and validation split with strictly distinct images. This may lead to loss of data, as it might be
+    # impossible to find a perfect partition i.e. there can be tuples that contain photos above and below our threshold
+    greater_thresh = train_triplets.astype(int) > threshold
+    greater_thresh = greater_thresh.sum(axis=1).astype(bool)
+    def_smaller_index = greater_thresh.index[greater_thresh == False].tolist()
+    val = train_triplets.loc[def_smaller_index]
+    smaller_thresh = train_triplets.astype(int) < threshold
+    smaller_thresh = smaller_thresh.sum(axis=1).astype(bool)
+    def_greater_index = smaller_thresh.index[smaller_thresh == False].tolist()
+    train = train_triplets.loc[def_greater_index]
+    print('Datapoints lost during distinct test-train splitting %s' %(len(train_triplets.index)-len(val.index)-len(train.index)))
+    # Check for no duplicates
+    assert(pd.merge(val, train, how='inner').size == 0)
+    print(f"Validation set size {val.shape}")
+    print(f"Training set size {train.shape}")
+    return train, val
+
+
 if __name__ == '__main__':
+    # Make working directory if it does not exist
+    dir_name = "NasNetLarge_features_balanced"
+    os.makedirs(dir_name, exist_ok=True)
+
     # Load ResNet50 features from preexisting data or create if they don't exist
     try:
         # TODO Insert path to .npy and .csv files
-        x_train = np.load("NasNetLarge_features_balanced/x_train_NasNetLarge_avg_pool_balanced__all_features.npy")
+        x_train = np.load("NasNetLarge_features_balanced/x_train_NasNetLarge_avg_pool_balanced_all_features.npy")
         train_triplets_balanced_with_y = pd.read_csv(
             "NasNetLarge_features_balanced/train_triplets_balanced_w_label.csv").iloc[:, 1:]
         print("Loaded preexisting feature vectors.")
@@ -259,11 +284,20 @@ if __name__ == '__main__':
     model.add(Dense(500, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
 
+    # Split training data into a validation and test set that do not contain common images
+    train_set, val_set = train_val_split(train_triplets_balanced_with_y.iloc[:, 1:], threshold=620)
+
     # Compile model
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     print("Starting training of the model ...")
-    model.fit(x_train, y_train, validation_split=0.33, epochs=15, batch_size=256, shuffle=True)
+    filepath = os.path.join(dir_name, "tmp_model")
+    checkpoint = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+    model.fit(x_train[train_set.index, :], y_train[train_set.index], epochs=8, batch_size=1024, shuffle=True,
+              validation_data=(x_train[val_set.index, :], y_train[val_set.index]),
+              callbacks=[checkpoint])
 
+    # Reload best weights
+    model = tf.keras.models.load_model(filepath)
     # Predict for submission set
     del x_train
     # TODO Insert path to .npy file
@@ -272,7 +306,7 @@ if __name__ == '__main__':
     y_submission[y_submission > 0.5] = int(1)
     y_submission[y_submission < 0.5] = int(0)
     # TODO Change name of output so the old one isn't overwritten
-    np.savetxt("NasNetLarge_vanilla_dense_test", y_submission.astype(dtype=int), fmt='%d')
+    np.savetxt("NasNetLarge_small_net_split_620_batch_1024_val2", y_submission.astype(dtype=int), fmt='%d')
 
     # ---SKLEARN---
     # # Train test split
