@@ -16,6 +16,10 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
 from sklearn import preprocessing
 
+from tsfresh import extract_features
+from tsfresh import select_features
+from tsfresh.utilities.dataframe_functions import impute
+
 ### Load data
 # test_data = pd.read_csv("test_features.csv", index_col="pid")
 train_data = pd.read_csv("train_features.csv")
@@ -23,15 +27,17 @@ train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
 
-### Impute
+# Impute Raw Data
 def impute(dataframe):
-    train_stat = dataframe.mean()
-
+    stat = dataframe.mean()
+    # Forwardfill per patient
     dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.ffill())
+    # Backwardfill per patient
     dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.bfill())
 
     for feature in dataframe:
-        dataframe[feature] = dataframe[feature].fillna(train_stat[feature])
+        dataframe[feature] = dataframe[feature].fillna(stat[feature])
+
     return dataframe
 
 
@@ -44,7 +50,7 @@ test_features = impute(test_features)
 # grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
 # grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
 ## Strategy 2 - Feature per time-step
-# Need to introduce pseudo time because 'Time' coloumn has different offset and therefore makes it difficult to pivot
+# Need to introduce pseudo time because 'Time' column has different offset and therefore makes it difficult to pivot
 pseudo_time = list(range(0, 12)) * int(train_data.shape[0] / 12)
 train_data['pseudo_time'] = pseudo_time
 grouped = train_data.pivot(index='pid', columns='pseudo_time')
