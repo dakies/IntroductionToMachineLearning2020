@@ -3,14 +3,12 @@
 import numpy as np
 import pandas as pd
 from sklearn.feature_selection import SelectFromModel
-from sklearn.metrics import make_scorer
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import HuberRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn import linear_model
 from sklearn.metrics import r2_score
@@ -26,8 +24,7 @@ test_features = pd.read_csv("test_features.csv")
 grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
 grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
 
-
-#Split into test and train
+# Split into test and train
 y = train_labels
 x_train, x_test, y_train, y_test = train_test_split(grouped, y, test_size=0.5)
 
@@ -69,7 +66,7 @@ for index, label in enumerate(labels):
         SimpleImputer(),
         preprocessing.StandardScaler(),
         # SVC(probability=True, cache_size=1000, class_weight='balanced')
-        SelectFromModel(LinearSVC(C=0.01, penalty="l1", dual=False), prefit=True),
+        SelectFromModel(LinearSVC(C=0.01, penalty="l1", dual=False)),
         RandomForestClassifier(max_depth=None)
     )
 
@@ -104,14 +101,17 @@ for index, label in enumerate(labels):
     results[label] = clf.predict_proba(grouped_t)[:, 1]
 
 
-
 # Lasso for prediction of future values
 print('Lasso start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
 
-param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
+param_grid_reg = [{'randomforestregressor__min_samples_split': [2, 4, 8],
+                       'randomforestregressor__min_samples_leaf': [1, 2, 4],
+                       'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+                  ]
 # param_grid_reg = [
-#    {'randomforestregressor__min_samples_split': [2, 4, 8],
+#    {'lasso__alpha': [0.1, 1, 10, 100],
+#    randomforestregressor__min_samples_split': [2, 4, 8],
 #     'randomforestregressor__min_samples_leaf': [1, 2, 4],
 #     'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
 # ]
@@ -119,15 +119,16 @@ param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
 score = 'r2'
 for index, label in enumerate(labels):
     estimator = make_pipeline(
-        SimpleImputer(missing_values=np.nan),
+        SimpleImputer(),
         preprocessing.StandardScaler(),
         # RandomForestRegressor()
-        linear_model.Lasso(max_iter=10000)
+        SelectFromModel(linear_model.Lasso(alpha=0.01)),
+        RandomForestRegressor()
     )
-    print("# Tuning hyper-parameters for label %s" % (label))
+    print("# Tuning hyper-parameters for label %s" % label)
 
     reg = GridSearchCV(
-        estimator , param_grid_reg, scoring=score, n_jobs=-1
+        estimator, param_grid_reg, scoring=score, n_jobs=-1
     )
     reg.fit(x_train, y_train.loc[:, label])
 
@@ -155,7 +156,7 @@ for index, label in enumerate(labels):
     results[label] = reg.predict(grouped_t)
 print('Lasso end')
 
-#Save Results
+# Save Results
 results.to_csv('prediction.zip', index=False, float_format='%.3f', compression='zip')
 
 print('Results saved as prediction.zip')
