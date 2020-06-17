@@ -15,14 +15,27 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
 from sklearn import preprocessing
 
+# Impute Raw Data
+def impute(dataframe):
+    # Forwardfill per patient
+    dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.ffill())
+    # Backwardfill per patient
+    dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.bfill())
+
+    return dataframe
+
+
 # Load data
 # test_data = pd.read_csv("test_features.csv", index_col="pid")
 train_data = pd.read_csv("train_features.csv")
 train_labels = pd.read_csv("train_labels.csv")
 test_features = pd.read_csv("test_features.csv")
 
-grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
-grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first', 'last'])
+train_data = impute(train_data)
+test_features = impute(test_features)
+
+grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.var, 'first', 'last'])
+grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.var, 'first', 'last'])
 
 # Split into test and train
 y = train_labels
@@ -101,13 +114,13 @@ for index, label in enumerate(labels):
     results[label] = clf.predict_proba(grouped_t)[:, 1]
 
 
-# Lasso for prediction of future values
-print('Lasso start')
+# Regression for prediction of future values
+print('Regression start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
 
-param_grid_reg = [{'randomforestregressor__min_samples_split': [2, 4, 8],
-                       'randomforestregressor__min_samples_leaf': [1, 2, 4],
-                       'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
+param_grid_reg = [{'randomforestregressor__min_samples_split': [4, 8],
+                       'randomforestregressor__min_samples_leaf': [4],
+                       'simpleimputer__strategy': ['mean']}
                   ]
 # param_grid_reg = [
 #    {'lasso__alpha': [0.1, 1, 10, 100],
