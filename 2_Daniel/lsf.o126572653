@@ -1,0 +1,39 @@
+Sender: LSF System <lsfadmin@eu-c7-103-08>
+Subject: Job 126572653: <python main_pipelined.py> in cluster <euler> Exited
+
+Job <python main_pipelined.py> was submitted from host <eu-login-43> by user <daniekie> in cluster <euler> at Thu Jun 18 12:53:05 2020
+Job was executed on host(s) <10*eu-c7-103-08>, in queue <normal.4h>, as user <daniekie> in cluster <euler> at Thu Jun 18 12:53:39 2020
+</cluster/home/daniekie> was used as the home directory.
+</cluster/home/daniekie/2_Daniel> was used as the working directory.
+Started at Thu Jun 18 12:53:39 2020
+Terminated at Thu Jun 18 12:53:44 2020
+Results reported at Thu Jun 18 12:53:44 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python main_pipelined.py
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1.44 sec.
+    Max Memory :                                 255 MB
+    Average Memory :                             113.33 MB
+    Total Requested Memory :                     10240.00 MB
+    Delta Memory :                               9985.00 MB
+    Max Swap :                                   -
+    Max Processes :                              3
+    Max Threads :                                4
+    Run time :                                   29 sec.
+    Turnaround time :                            39 sec.
+
+The output (if any) follows:
+
+Traceback (most recent call last):
+  File "main_pipelined.py", line 19, in <module>
+    from tsfresh import extract_features
+ModuleNotFoundError: No module named 'tsfresh'

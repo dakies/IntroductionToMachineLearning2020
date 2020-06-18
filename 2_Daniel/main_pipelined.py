@@ -16,10 +16,6 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
 from sklearn import preprocessing
 
-from tsfresh import extract_features
-from tsfresh import select_features
-from tsfresh.utilities.dataframe_functions import impute
-
 ### Load data
 # test_data = pd.read_csv("test_features.csv", index_col="pid")
 train_data = pd.read_csv("train_features.csv")
@@ -30,9 +26,9 @@ test_features = pd.read_csv("test_features.csv")
 # Impute Raw Data
 def impute(dataframe):
     stat = dataframe.mean()
-    # Forwardfill per patient
+    # Forward-fill per patient
     dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.ffill())
-    # Backwardfill per patient
+    # Backward-fill per patient
     dataframe.loc[:, dataframe.columns != 'pid'] = dataframe.groupby('pid').transform(lambda x: x.bfill())
 
     for feature in dataframe:
@@ -54,10 +50,18 @@ test_features = impute(test_features)
 pseudo_time = list(range(0, 12)) * int(train_data.shape[0] / 12)
 train_data['pseudo_time'] = pseudo_time
 grouped = train_data.pivot(index='pid', columns='pseudo_time')
+grouped = grouped.drop(columns=grouped.columns[range(1, 23)])
 
 pseudo_time = list(range(0, 12)) * int(test_features.shape[0] / 12)
 test_features['pseudo_time'] = pseudo_time
 grouped_t = test_features.pivot(index='pid', columns='pseudo_time')
+grouped_t = grouped_t.drop(columns=grouped_t.columns[range(1, 23)])
+
+# Revert to original index order
+idx = train_data['pid'].unique()
+grouped = grouped.reindex(idx)
+idx = test_features['pid'].unique()
+grouped_t = grouped_t.reindex(idx)
 
 # Split into test and train
 y = train_labels
@@ -134,24 +138,21 @@ for index, label in enumerate(labels):
 
     results[label] = clf.predict_proba(grouped_t)[:, 1]
 
-# Lasso for prediction of future values
+# Regression for prediction of future values
 print('Regression start')
 labels = ['LABEL_RRate', 'LABEL_ABPm', 'LABEL_SpO2', 'LABEL_Heartrate']
 
-param_grid_reg = [{'lasso__alpha': [0.1, 1, 10, 100]}]
-# param_grid_reg = [
-#    {'randomforestregressor__min_samples_split': [2, 4, 8],
-#     'randomforestregressor__min_samples_leaf': [1, 2, 4],
-#     'simpleimputer__strategy': ['mean', 'median', 'most_frequent']}
-# ]
+param_grid_reg = [
+   {'randomforestregressor__min_samples_split': [2, 4, 8],
+    'randomforestregressor__min_samples_leaf': [1, 2, 4]}
+]
 
 score = 'r2'
 for index, label in enumerate(labels):
     estimator = make_pipeline(
-        SimpleImputer(missing_values=np.nan),
+        # SimpleImputer(missing_values=np.nan),
         preprocessing.StandardScaler(),
-        # RandomForestRegressor()
-        linear_model.Lasso(max_iter=10000)
+        RandomForestRegressor()
     )
     print("# Tuning hyper-parameters for label %s" % (label))
 
