@@ -1,6 +1,44 @@
 # IML_2020
 Introduction to Machine Learning course 2020
 
+# New start with xgb
+Starting XGB Classification...
+ROC score for label LABEL_BaseExcess: 0.8478
+ROC score for label LABEL_Fibrinogen: 0.6219
+ROC score for label LABEL_AST: 0.6103
+ROC score for label LABEL_Alkalinephos: 0.6342
+ROC score for label LABEL_Bilirubin_total: 0.6156
+ROC score for label LABEL_Lactate: 0.6649
+ROC score for label LABEL_TroponinI: 0.6991
+ROC score for label LABEL_SaO2: 0.7041
+ROC score for label LABEL_Bilirubin_direct: 0.5539
+ROC score for label LABEL_EtCO2: 0.7797
+ROC score for label LABEL_Sepsis: 0.5026
+Starting XGB Regression...
+R2 score for label LABEL_RRate: 0.4019
+R2 score for label LABEL_ABPm: 0.6191
+R2 score for label LABEL_SpO2: 0.2481
+R2 score for label LABEL_Heartrate: 0.6509
+
+with impuation:
+Starting XGB Classification...
+ROC score for label LABEL_BaseExcess: 0.7665
+ROC score for label LABEL_Fibrinogen: 0.6153
+ROC score for label LABEL_AST: 0.6240
+ROC score for label LABEL_Alkalinephos: 0.6038
+ROC score for label LABEL_Bilirubin_total: 0.5994
+ROC score for label LABEL_Lactate: 0.6631
+ROC score for label LABEL_TroponinI: 0.6714
+ROC score for label LABEL_SaO2: 0.6836
+ROC score for label LABEL_Bilirubin_direct: 0.5358
+ROC score for label LABEL_EtCO2: 0.7630
+ROC score for label LABEL_Sepsis: 0.5066
+Starting XGB Regression...
+R2 score for label LABEL_RRate: 0.3535
+R2 score for label LABEL_ABPm: 0.5916
+R2 score for label LABEL_SpO2: 0.2625
+R2 score for label LABEL_Heartrate: 0.6072
+
 ---- Medical Events prediction ----
 
 Data: 12 hours per patient, vital signs and test results
