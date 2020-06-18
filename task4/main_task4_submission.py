@@ -17,7 +17,6 @@ random_state = 4
 np.random.seed(random_state)
 tf.random.set_seed(random_state)
 
-
 """
     -- IML Project Task 4 Code by Daniel Kiesewalter and Leiv Andresen --
     - execution requirements below -
@@ -35,19 +34,19 @@ tf.random.set_seed(random_state)
     As we are dealing with image classification, good models consist of a Convolutional Neural Networks
     to extract relevant information (features) from the images followed by a comparatively small fully 
     connected network to predict classes based on the features. 
-    
+
     We decided to use the model NasNetLarge as feature extractor and train a dense neural net on top to perform
     the classification. The images are first preprocessed (scaling piel values to -1, 1) before the NasNetLarge 
     model predicts the final layer before classification. To reduce the dimensionality global average pooling is
     applied to this layer yielding roughly 4000 feature values per image. The NasNetLarge model predicts with 
     weights pretrained on the 'ImageNet' dataset.
-    
+
     Thereafter image B and C are swapped for half of the provided training image triplets in order to generate 
     a balanced training dataset. Before training the data is split into unique train and validation sets in order to 
     ensure that the model generalizes well to unseen images since the submission test set contains images that 
     are not in the training set. This split yields a validation set of roughly 100 images and a training set
     of roughly 40 000 images. 
-    
+
     The training set is fed into a dense neural net with a 'relu' input layer two 'relu' hidden layers and a
     'sigmoid' output layer. Thereafter the output is thresholded at 0.5 to determine the class prediction.
     The optimizer is 'adam' and the loss 'binary_crossentropy'. When iterating hyperparameters we noticed that we 
@@ -66,7 +65,7 @@ tf.random.set_seed(random_state)
 
     "train_triplets.txt", "test_triplets.txt" and the folder "food" with the images have to be located in the
     same folder as the script. The script will create and save files to the folder "NasNetLarge_features_balanced".
-    
+
     The total space required is roughly 25 GB and the time required is around 6 hours on our machine.
     The results will be saved to the folder in which the script is placed.
     If the script is rerun then it will load the features from the disk.
@@ -121,7 +120,7 @@ def extract_features_from_images():
                 counter += 1
 
             # handles the odd operating system helper files in the folder
-            except FileNotFoundError:
+            except:
                 print(f"[extract_features_from_images] ERROR: with image name {image_name}")
 
         print(f"[extract_features_from_images] Processing images took: {'%.2f' % ((time.time() - start)/60)} minutes")
@@ -320,4 +319,4 @@ if __name__ == '__main__':
     y_submission = model.predict(X_submission)
     y_submission[y_submission > 0.5] = int(1)
     y_submission[y_submission < 0.5] = int(0)
-    np.savetxt("NasNetLarge_small_net_split_620_batch_1024_val2", y_submission.astype(dtype=int), fmt='%d')
+    np.savetxt("NasNetLarge_small_net_split_620_batch_1024_val3", y_submission.astype(dtype=int), fmt='%d')
