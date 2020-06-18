@@ -2,16 +2,17 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.feature_selection import SelectFromModel
 from sklearn.metrics import make_scorer
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import HuberRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn import linear_model
+from sklearn.linear_model import Lasso
 from sklearn.metrics import r2_score
 from sklearn.metrics import classification_report
 from sklearn import preprocessing
@@ -36,17 +37,17 @@ def impute(dataframe):
 
     return dataframe
 
+### Feature Extraction - possibility to move this to pipeline?
+## Strategy 1 - Standard Statistics
+grouped_stat = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.var])
+grouped_t_stat = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, np.var])
+## Strategy 2 - Feature per time-step
+# Need to introduce pseudo time because 'Time' column has different offset and therefore makes it difficult to pivot
 
-## Impute train data
+# Impute train data
 train_data = impute(train_data)
 test_features = impute(test_features)
 
-### Feature Extraction - possibility to move this to pipeline?
-## Strategy 1 - Standard Statistics
-# grouped = train_data.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
-# grouped_t = test_features.groupby(['pid'], sort=False).agg([np.mean, np.min, np.max, np.std, 'first'])
-## Strategy 2 - Feature per time-step
-# Need to introduce pseudo time because 'Time' column has different offset and therefore makes it difficult to pivot
 pseudo_time = list(range(0, 12)) * int(train_data.shape[0] / 12)
 train_data['pseudo_time'] = pseudo_time
 grouped = train_data.pivot(index='pid', columns='pseudo_time')
@@ -62,6 +63,10 @@ idx = train_data['pid'].unique()
 grouped = grouped.reindex(idx)
 idx = test_features['pid'].unique()
 grouped_t = grouped_t.reindex(idx)
+
+# Add statistical features
+grouped = pd.concat([grouped, grouped_stat], axis=1)
+grouped_t = pd.concat([grouped_t, grouped_t_stat], axis=1)
 
 # Split into test and train
 y = train_labels
@@ -102,9 +107,10 @@ results['pid'] = test_features['pid'].unique()
 print('Classification start')
 for index, label in enumerate(labels):
     estimator = make_pipeline(
-        # SimpleImputer(),
+        SimpleImputer(strategy='mean'),
         preprocessing.StandardScaler(),
         # SVC(probability=True, cache_size=1000, class_weight='balanced')
+        SelectFromModel(LinearSVC(max_iter=10000)),
         RandomForestClassifier(class_weight='balanced')
     )
 
@@ -150,8 +156,9 @@ param_grid_reg = [
 score = 'r2'
 for index, label in enumerate(labels):
     estimator = make_pipeline(
-        # SimpleImputer(missing_values=np.nan),
+        SimpleImputer(strategy='mean'),
         preprocessing.StandardScaler(),
+        SelectFromModel(Lasso(alpha=0.01, max_iter=10000)),
         RandomForestRegressor()
     )
     print("# Tuning hyper-parameters for label %s" % (label))
