@@ -1,5 +1,7 @@
-# IML_2020
+# IML_2020 task 2
 Introduction to Machine Learning course 2020
+
+results task 2 here https://docs.google.com/spreadsheets/d/1LFfaXcjigT8bla9nSAW6k1N5Eh8rL38APm4yRKEtR_8/edit?usp=sharing
 
 # New start with xgb
 Starting XGB Classification...
@@ -38,6 +40,9 @@ R2 score for label LABEL_RRate: 0.3535
 R2 score for label LABEL_ABPm: 0.5916
 R2 score for label LABEL_SpO2: 0.2625
 R2 score for label LABEL_Heartrate: 0.6072
+
+applying class weighting does not make it better
+XGBRF also doesn't make it better
 
 ---- Medical Events prediction ----
 
