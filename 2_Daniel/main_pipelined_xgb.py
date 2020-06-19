@@ -20,6 +20,7 @@ from sklearn.metrics import roc_auc_score
 
 import xgboost as gb
 import pickle
+import os
 
 # Random states
 random_state = 123
@@ -88,9 +89,10 @@ if data_to_use is 'grouped':
     x_t = imputer.fit_transform(grouped_t)
 
 if data_to_use is 'raw':
-    # Pivot these snitches
+    # Unstacking, first make a one to twelve column for the hours
     one_to_twelve = np.tile(np.linspace(1, 12, 12, dtype=int), int(len(train_data) / 12))
     train_data.insert(1, "hour", one_to_twelve, True)
+    # set a multiindex and unstack the hour index
     train_data = train_data.set_index(['pid', 'hour'])
     train_data = train_data.unstack(level=1)
     one_to_twelve = np.tile(np.linspace(1, 12, 12, dtype=int), int(len(test_features) / 12))
@@ -128,10 +130,13 @@ for label in labels_clf:
     y_train_xgb = y_train[label]
     y_test_xgb = y_test[label]
     # Compute class weights -- DOESN'T do anything
-    # class_weights = compute_class_weight('balanced', np.unique(y_train_xgb), y_train_xgb)
+    class_weights = compute_class_weight('balanced', np.unique(y_train_xgb), y_train_xgb)
+    sample_weights = pd.DataFrame(np.zeros((len(y_train_xgb), 1)))
+    sample_weights = sample_weights.where(cond=(y_train_xgb == 0), other=class_weights[0])
+    sample_weights = sample_weights.where(cond=(y_train_xgb == 1), other=class_weights[1])
 
-    xgb_clf = gb.XGBClassifier(random_state=random_state) # class_weights=class_weights)
-    xgb_clf.fit(x_train, y_train_xgb, verbose=True)
+    xgb_clf = gb.XGBRFClassifier(random_state=random_state)
+    xgb_clf.fit(x_train, y_train_xgb, verbose=True, sample_weight=sample_weights)
     y_pred = xgb_clf.predict(x_test)
     print(f"ROC score for label {label}: {'%.4f' % (roc_auc_score(y_true=y_test_xgb, y_score=y_pred))}")
     models_clf[label] = xgb_clf
@@ -141,11 +146,14 @@ models_reg = {"label": 'model'}
 for label in labels_reg:
     y_train_xgb = y_train[label]
     y_test_xgb = y_test[label]
-    # Compute class weights -- DOESN'T do anything
-    # class_weights = compute_class_weight('balanced', np.unique(y_train_xgb), y_train_xgb)
+    # Compute class weights
+    class_weights = compute_class_weight('balanced', np.unique(y_train_xgb), y_train_xgb)
+    sample_weights = pd.DataFrame(np.zeros((len(y_train_xgb), 1)))
+    sample_weights = sample_weights.where(cond=(y_train_xgb == 0), other=class_weights[0])
+    sample_weights = sample_weights.where(cond=(y_train_xgb == 1), other=class_weights[1])
 
-    xgb_reg = gb.XGBRegressor(random_state=random_state) # class_weights=class_weights)
-    xgb_reg.fit(x_train, y_train_xgb, verbose=True)
+    xgb_reg = gb.XGBRFRegressor(random_state=random_state) # class_weights=class_weights)
+    xgb_reg.fit(x_train, y_train_xgb, verbose=True, sample_weight=sample_weights)
     y_pred = xgb_reg.predict(x_test)
     print(f"R2 score for label {label}: {'%.4f' % (r2_score(y_true=y_test_xgb, y_pred=y_pred))}")
     models_reg[label] = xgb_reg
@@ -158,7 +166,7 @@ for label in labels_clf:
 for label in labels_reg:
     results[label] = models_reg[label].predict(x_t)
 
-results.to_csv('prediction.zip', index=False, float_format='%.3f', compression='zip')
+results.to_csv('XGB_slight_tune.zip', index=False, float_format='%.3f', compression='zip')
 
 #
 # # Parameters to search over
