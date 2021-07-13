@@ -82,5 +82,8 @@ pH: Measurement of the acidity or alkalinity of the blood, with a standard unit 
 ## Project 3
 Wroking with spare and unbalanced data
 ## Project 4
-Neural Networks
-Create model to identify wich food tastes the most similar from a picture of 3 different foods. i.e. pictures -> potatoe fries, mashed potatoes & candy. output potatoe fries and mashed potatoes
+Pipeline consiting of 
+1)Feature extraction using deep learning approach, by removing the last fully connected layer.
+2)Classfication using a variety of diffferent classifer
+3) Use Bayesian optimisation to find optimal parameters for classifers
+Goal: Create model to identify wich images of food taste the most similar
